@@ -37,19 +37,13 @@ public class Stroke {
     bool mDrawing = false;
     // bool mOptionsChanged = false;
     // bool mGeometryChanged = false;
-
+    public bool backFaces = true;
+    public float depth= .01f; //how deep the stroke is, used for back face
     int mId = -1;
     int mNumUsedVertices = 0;
     float mStrokeLength = 0;
 
-    Rect mBounds;
-
     public StrokeOptions options;
-    // public float baseThickness = .01f;
-	// public float minThickness = .01f;
-	// public float maxThickness = 2f;
-	// public float speedToThickness = .3f;
-	// public int lineCapPoints = 10;
     List<Vector3> mInputPoints;
     List<Quaternion> mInputRotations;
     List<Vector3> mSampledPoints;
@@ -124,9 +118,6 @@ public void move(Vector3 pos, Quaternion rotation)
 		pathPnts[0] = (prev2 + prev1) / 2.0f;
 		pathPnts[1] = prev1;
 		pathPnts[2] = (prev1 + cur) / 2.0f;
-        // pathPnts[0] = prev2;
-        // pathPnts[1] = prev1;
-        // pathPnts[2] = cur;
 		CubicBezierPath path = new CubicBezierPath(pathPnts);
 
         // divide segment adaptatively depending on its length
@@ -150,10 +141,8 @@ public void move(Vector3 pos, Quaternion rotation)
             mOffsets.Add(rotatedPerp);
         }
 
-        // mGeometryChanged = true;
         mInputPoints.Add(newPos);
         mInputRotations.Add(newRot);
-		//update the bounds
         updateMesh();
     }
 }
@@ -177,6 +166,7 @@ public void end()
 
             //build the vertices
             Vector3[] vertices = new Vector3[numPoints*2];
+            Vector3[] doubleVerts = new Vector3[vertices.Length * 2];
             for (int i = 0; i < numPoints; i++)
             {
                 
@@ -192,20 +182,55 @@ public void end()
                 //base point + the perpendicular offset *thickness
                 vertices[i * 2 +1] = mSampledPoints[i] + mOffsets[i] * thick*lineCap;
             }
-            mesh.vertices = vertices;
+            // Debug.Log("vertices:" + vertices.Length);
+            if (backFaces)
+            //double the vertices
+            {
+                // Vector3[] backFacevertices = (Vector3[])vertices.Clone();
+                // Vector3[] backFacevertices = System.Array.Copy(vertices, backFacevertices,) new Vector3[numPoints * 2];
+                // backFacevertices[i * 2] = mSampledPoints[i] - mOffsets[i] * thick * lineCap;
+                // backFacevertices[i * 2 + 1] = mSampledPoints[i] + mOffsets[i] * thick * lineCap;
+
+                
+                vertices.CopyTo(doubleVerts, 0);
+                vertices.CopyTo(doubleVerts, vertices.Length);
+                mesh.vertices = doubleVerts;
+                // Debug.Log("doubleVerts:" + doubleVerts.Length);
+            }else{
+                mesh.vertices = vertices;
+            }
 
             //set uvs
-            Vector2[] uvs = new Vector2[vertices.Length];
-            for (int k = 0; k < uvs.Length; k+=2)
-            {
-                uvs[k] = new Vector2(k/(float)uvs.Length, 0);
-                uvs[k+1] = new Vector2(k/(float)uvs.Length, 1);
+            if (backFaces){
+                Vector2[] uvs = new Vector2[doubleVerts.Length];
+                float textureDis = 1f; //every 1 distance the x will wrap?
+                float strokeDistance = 0;
+                for (int k = 0; k < uvs.Length; k += 2)
+                {
+                    // float u = k / (float)uvs.Length;
+                    float u = strokeDistance / textureDis;
+                    uvs[k] = new Vector2(u, 0);
+                    uvs[k + 1] = new Vector2(u, 1);
+                    if(k-1 >=0){
+                        strokeDistance += Vector3.Distance(doubleVerts[k], doubleVerts[k-1]);
+                    }
+                }
+                mesh.uv = uvs;
+            }else{
+                Vector2[] uvs = new Vector2[vertices.Length];
+                for (int k = 0; k < uvs.Length; k += 2)
+                {
+                    uvs[k] = new Vector2(k / (float)uvs.Length, 0);
+                    uvs[k + 1] = new Vector2(k / (float)uvs.Length, 1);
+                }
+                mesh.uv = uvs;
             }
-            mesh.uv = uvs;
+            
 
             //build the triangles
-            int[] triangles = new int[(numPoints * 2 - 2) * 3];
             int j = 0;
+            //front faces
+            int[] triangles = new int[(numPoints * 2 - 2) * 3];
             for (int i = 0; i < numPoints * 2 - 3; i += 2, j++)
             {
                 triangles[i * 3] = j * 2;
@@ -217,7 +242,55 @@ public void end()
                 triangles[i * 3 + 5] = j * 2 + 2;
 
             }
-            mesh.triangles = triangles;
+            if(backFaces){
+                int[] doubleTriangles = new int[triangles.Length*2];
+                // var doubleVerts = new Vector3[vertices.Length * 2];
+                triangles.CopyTo(doubleTriangles, 0);
+                // System.Array.Reverse(triangles);
+                // j = triangles.Length;
+                int[] backTriangles = new int[(numPoints * 2 - 2) * 3];
+                for (int i = 0; i < numPoints * 2 - 3; i += 2, j++)
+                {
+                    backTriangles[i * 3 + 0] = j * 2 + 2;
+                    backTriangles[i * 3 + 1] = j * 2 + 1;
+                    backTriangles[i * 3 + 2] = j * 2;
+
+                    backTriangles[i * 3 + 3] = j * 2 + 2;
+                    backTriangles[i * 3 + 4] = j * 2 + 3;
+                    backTriangles[i * 3 + 5] = j * 2 + 1;
+
+                }
+                backTriangles.CopyTo(doubleTriangles, triangles.Length);
+
+                // int[] backTriangles = new int[(numPoints * 2 - 2) * 6];
+                // for (int i = 0; i < numPoints * 2 - 3; i += 2, j++)
+                // {
+                //     //front faces
+                //     triangles[i * 6] = j * 2;
+                //     triangles[i * 6 + 1] = j * 2 + 1;
+                //     triangles[i * 6 + 2] = j * 2 + 2;
+
+                //     triangles[i * 6 + 3] = j * 2 + 1;
+                //     triangles[i * 6 + 4] = j * 2 + 3;
+                //     triangles[i * 6 + 5] = j * 2 + 2;
+
+                //     //back faces
+                //     triangles[i * 6 + 6] = j * 2 + 2;
+                //     triangles[i * 6 + 7] = j * 2 + 1;
+                //     triangles[i * 6 + 8] = j * 2;
+
+                //     triangles[i * 6 + 9] = j * 2 + 2;
+                //     triangles[i * 6 + 10] = j * 2 + 3;
+                //     triangles[i * 6 + 11] = j * 2 + 1;
+                // }
+                mesh.triangles = doubleTriangles;
+            }else{
+                mesh.triangles = triangles;
+            }
+            // int[] triangles = new int[(numPoints * 2 - 2) * 3];
+            // int j = 0;
+            
+           
 
             mesh.RecalculateNormals();
         }
