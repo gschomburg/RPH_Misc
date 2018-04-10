@@ -7,11 +7,17 @@ public class DrawStrokes : MonoBehaviour {
 	public GameObject activeStrokes; //stored meshes
 	public GameObject cacheStrokes; //active Drawing mesh.. maybe use array
 	Stroke stroke;
-	public Transform debugSphere;
+	// public Transform debugSphere;
+	public Transform cursor;
 	public MeshFilter activeMeshFilter;
 	public MeshFilter cacheMeshFilter;
 
-	Vector3 deltaDraw;
+	public StrokeOptions strokeOptions;
+
+	public float deltaZ = 0;
+    public float deltaRX = 0;
+
+	// Vector3 deltaDraw;
 	// Use this for initialization
 	void Start () {
         activeMeshFilter = activeStrokes.GetComponent<MeshFilter>();
@@ -20,7 +26,10 @@ public class DrawStrokes : MonoBehaviour {
 		cacheMeshFilter.mesh = new Mesh();
         activeMeshFilter.mesh.name = "activeMesh";
 		cacheMeshFilter.mesh.name = "cacheMesh";
-        
+		if(strokeOptions==null){
+            strokeOptions = new StrokeOptions();
+		}
+        // strokeOptions = new StrokeOptions();
         //send the mesh to the strokes
         // deltaDraw = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), 0);
 		// List<Vector3> points = GetPoints();
@@ -41,21 +50,44 @@ public class DrawStrokes : MonoBehaviour {
 	}
 	// Update is called once per frame
 	void Update () {
-		//draw strokes when the mouse is clicked
-		Vector3 pos = transform.InverseTransformPoint(cameraMouse());
-		debugSphere.localPosition = pos;
+
+        //draw strokes when the mouse is clicked
+        Vector3 pos = transform.InverseTransformPoint(cameraMouse());
+
+        deltaZ += .005f;
+        Vector3 deltaPos = new Vector3(0, 0, Mathf.Sin(deltaZ) * 2);
+        pos += deltaPos;
+
+        cursor.localPosition = pos;
+       
+		deltaRX += .005f;
+        cursor.localEulerAngles = new Vector3 (Mathf.Sin(deltaRX)*90, 0f, 0f);
+		Quaternion rotation = cursor.rotation; //world rotation
 
 		if(Input.GetMouseButtonDown(0)){
 			stroke = new Stroke(activeMeshFilter.mesh);
-			stroke.start(pos);
+            //set the x rotation randomly
+            // cursor.localEulerAngles = new Vector3(Random.Range(-60f, 60f), 0, 0);
+			stroke.options = strokeOptions;
+			stroke.start(pos, rotation);
 		}
 		if(Input.GetMouseButton(0)){
-			stroke.move(pos);
+			stroke.move(pos, rotation);
 		}
 		if(Input.GetMouseButtonUp(0)){
 			stroke.end();
 			combineStroke(stroke);
 		}
+        if (Input.GetKeyDown(KeyCode.Space)){
+            clearStrokes();
+		}
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Application.Quit();
+        }
+	}
+	void clearStrokes(){
+
 	}
 	void combineStroke(Stroke _stroke){
 		// MeshFilter[] meshFilters = new MeshFilter[2];
