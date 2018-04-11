@@ -137,18 +137,24 @@ public void move(Vector3 pos, Quaternion rotation, float pressure = 1f)
             float thick = Mathf.Lerp(prevThick, currThick, t);
             float pressureStep = Mathf.Lerp(prevPressure, currPressure, t);
             Vector3 sampledPoint = path.GetPointNorm(t);
-                // Quaternion sampledRot = Quaternion.Lerp(lastRot, rotation, t);
-            Quaternion sampledRot = rotation;
+            Quaternion sampledRot = Quaternion.Lerp(lastRot, rotation, t);
+            // Quaternion sampledRot = rotation;
 
 			Vector3 ribbonDirection = Vector3.Normalize( newPos - (mSampledPoints.Count>0 ? mSampledPoints[mSampledPoints.Count-1] : mInputPoints[mInputPoints.Count-1]));
-			// Vector3 ribbonOffset = new Vector3(-ribbonDirection.y, ribbonDirection.x, ribbonDirection.z);
-            // Vector3 rotatedPerp = sampledRot * ribbonOffset;
+                // Vector3 ribbonOffset = new Vector3(-ribbonDirection.y, ribbonDirection.x, ribbonDirection.z);
+
+                // Vector3 rotatedPerp = sampledRot * ribbonOffset;
+
+                // if(ribbonDirection.y<0){
+                //     Quaternion.Inverse(sampledRot);
+                // }
+            Vector3 ribbonOffset = sampledRot * ribbonDirection;
             Vector3 controllerVector = sampledRot * Vector3.forward;
 
-            Vector3 perp = Vector3.Cross(ribbonDirection.normalized, controllerVector.normalized).normalized;
-            if (perp.Equals(Vector3.zero) ){
-                Debug.Log("can't normailze vector too small");
-            }
+            Vector3 perp = Vector3.Cross(ribbonOffset, controllerVector).normalized;
+            // if (perp.Equals(Vector3.zero) ){
+            //     Debug.Log("can't normailze vector too small");
+            // }
             
             mSampledPoints.Add(sampledPoint);
             // mSampledRotations.Add(sampledRot);

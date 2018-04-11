@@ -9,6 +9,7 @@ public class DrawStrokes : MonoBehaviour {
 	Stroke stroke;
 	// public Transform debugSphere;
 	public Transform cursor;
+	public Transform strokeCursor;
 	public MeshFilter activeMeshFilter;
 	public MeshFilter cacheMeshFilter;
 
@@ -59,11 +60,12 @@ public class DrawStrokes : MonoBehaviour {
         pos += deltaPos;
 
         cursor.localPosition = pos;
+        strokeCursor.localPosition = pos;
        
 		// deltaRX += .005f;
         // cursor.localEulerAngles = new Vector3 (Mathf.Sin(deltaRX)*90, 0f, 0f);
 		Quaternion rotation = cursor.rotation; //world rotation
-
+        strokeCursor.rotation = Quaternion.Inverse(rotation);
 		if(Input.GetMouseButtonDown(0)){
 			stroke = new Stroke(activeMeshFilter.mesh);
             //set the x rotation randomly
@@ -73,6 +75,7 @@ public class DrawStrokes : MonoBehaviour {
 		}
 		if(Input.GetMouseButton(0)){
 			stroke.move(pos, rotation);
+            // strokeCursor.rotation
 		}
 		if(Input.GetMouseButtonUp(0)){
 			stroke.end();
