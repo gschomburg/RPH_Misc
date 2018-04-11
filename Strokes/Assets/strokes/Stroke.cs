@@ -32,7 +32,7 @@ public class Stroke {
 	public Mesh mesh;
     // int mVerticesPerMesh = 600;
     // int mPointsPerMesh = 600 / 2;
-    float mMinSegmentLength = .1f; // min distance to space vertices
+    float mMinSegmentLength = .05f; // min distance to space vertices
     float mMinDistance = .1f; //minimum distance to add a new segment
     bool mDrawing = false;
     // bool mOptionsChanged = false;
@@ -47,9 +47,10 @@ public class Stroke {
     List<Vector3> mInputPoints;
     List<Quaternion> mInputRotations;
     List<Vector3> mSampledPoints;
-    List<Quaternion> mSampledRotations;
+    // List<Quaternion> mSampledRotations;
     List<Vector3> mOffsets;
     List<float> mThickness;
+    List<float> mPressure;
     
 	public Stroke(Mesh _mesh){
         options = new StrokeOptions();
@@ -57,9 +58,10 @@ public class Stroke {
         mInputPoints = new List<Vector3>();
         mInputRotations = new List<Quaternion>();
         mSampledPoints= new List<Vector3>();
-        mSampledRotations = new List<Quaternion>(); 
+        // mSampledRotations = new List<Quaternion>(); 
         mOffsets= new List<Vector3>();
         mThickness= new List<float>();
+        mPressure = new List<float>();
         mesh = _mesh;
 	}
     // public void BuildStroke(List<Vector3> _points){
@@ -76,13 +78,13 @@ public class Stroke {
     //     }
     //     end();
 	// }
-public void start(Vector3 pos, Quaternion rotation)
+public void start(Vector3 pos, Quaternion rotation, float pressure= 1f)
 {
     mDrawing = true;
-    move(pos, rotation);
+    move(pos, rotation, pressure);
 }
 
-public void move(Vector3 pos, Quaternion rotation)
+public void move(Vector3 pos, Quaternion rotation, float pressure = 1f)
 {
     if (!mDrawing) return;
 
@@ -95,7 +97,7 @@ public void move(Vector3 pos, Quaternion rotation)
     {
         //blend position
 		Vector3 lastPos = mInputPoints[mInputPoints.Count - 1];
-        Vector3 newPos = Vector3.Lerp(lastPos, pos, .35f);
+        Vector3 newPos = Vector3.Lerp(lastPos, pos, .3f);
         float dist = Vector3.Distance(newPos, lastPos);
         //blend rotation
         Quaternion lastRot = mInputRotations[mInputRotations.Count - 1];
@@ -107,8 +109,12 @@ public void move(Vector3 pos, Quaternion rotation)
         float prevThick = mThickness.Count <1 ? newThick : mThickness[mThickness.Count -1];
         float currThick = Mathf.Lerp(prevThick, newThick, 0.2f); //lerp(prevThick, newThick, 0.2);
 
+        float newPressure = pressure;
+        float prevPressure = mPressure.Count < 1 ? newThick : mPressure[mPressure.Count - 1];
+        float currPressure = Mathf.Lerp(prevPressure, newPressure, 0.4f); //lerp(prevThick, newThick, 0.2);
+
         // get last 3 input points
-		Vector3 prev2 = mInputPoints[mInputPoints.Count-2];
+        Vector3 prev2 = mInputPoints[mInputPoints.Count-2];
 		Vector3 prev1 = mInputPoints[mInputPoints.Count - 1];
 		Vector3 cur = newPos;
 
@@ -129,16 +135,26 @@ public void move(Vector3 pos, Quaternion rotation)
         {
             float t = i / (float)divisions;
             float thick = Mathf.Lerp(prevThick, currThick, t);
+            float pressureStep = Mathf.Lerp(prevPressure, currPressure, t);
             Vector3 sampledPoint = path.GetPointNorm(t);
-            Quaternion sampledRot = Quaternion.Lerp(lastRot, rotation, t);
-			Vector3 norm = Vector3.Normalize( newPos - (mSampledPoints.Count>0 ? mSampledPoints[mSampledPoints.Count-1] : mInputPoints[mInputPoints.Count-1]));
-			Vector3 perp = new Vector3(-norm.y, norm.x, norm.z);
-            Vector3 rotatedPerp = sampledRot * perp;
+                // Quaternion sampledRot = Quaternion.Lerp(lastRot, rotation, t);
+            Quaternion sampledRot = rotation;
 
+			Vector3 ribbonDirection = Vector3.Normalize( newPos - (mSampledPoints.Count>0 ? mSampledPoints[mSampledPoints.Count-1] : mInputPoints[mInputPoints.Count-1]));
+			// Vector3 ribbonOffset = new Vector3(-ribbonDirection.y, ribbonDirection.x, ribbonDirection.z);
+            // Vector3 rotatedPerp = sampledRot * ribbonOffset;
+            Vector3 controllerVector = sampledRot * Vector3.forward;
+
+            Vector3 perp = Vector3.Cross(ribbonDirection.normalized, controllerVector.normalized).normalized;
+            if (perp.Equals(Vector3.zero) ){
+                Debug.Log("can't normailze vector too small");
+            }
+            
             mSampledPoints.Add(sampledPoint);
-            mSampledRotations.Add(sampledRot);
+            // mSampledRotations.Add(sampledRot);
             mThickness.Add(thick);
-            mOffsets.Add(rotatedPerp);
+            mPressure.Add(pressureStep);
+            mOffsets.Add(perp);
         }
 
         mInputPoints.Add(newPos);
@@ -176,11 +192,12 @@ public void end()
                 // float lineCap = 1;
 
                 float thick = Mathf.Clamp(options.baseThickness + mThickness[i] * options.speedToThickness, options.minThickness, options.maxThickness);
+                float pressure = mPressure[i]*2.0f;
                 //set the vertices:
                 //base point - the perpendicular offset * thickness
-                vertices[i*2] = mSampledPoints[i]-mOffsets[i] *thick*lineCap;
+                vertices[i*2] = mSampledPoints[i] - mOffsets[i] * thick * lineCap * pressure;
                 //base point + the perpendicular offset *thickness
-                vertices[i * 2 +1] = mSampledPoints[i] + mOffsets[i] * thick*lineCap;
+                vertices[i * 2 +1] = mSampledPoints[i] + mOffsets[i] * thick * lineCap * pressure;
             }
             // Debug.Log("vertices:" + vertices.Length);
             if (backFaces)
@@ -203,14 +220,24 @@ public void end()
             //set uvs
             if (backFaces){
                 Vector2[] uvs = new Vector2[doubleVerts.Length];
-                float textureDis = 1f; //every 1 distance the x will wrap?
+                float textureDis = 5f; //every 1 distance the x will wrap?
                 float strokeDistance = 0;
                 for (int k = 0; k < uvs.Length; k += 2)
                 {
                     // float u = k / (float)uvs.Length;
                     float u = strokeDistance / textureDis;
-                    uvs[k] = new Vector2(u, 0);
-                    uvs[k + 1] = new Vector2(u, 1);
+                    // uvs[k] = new Vector2(u, 0);
+                    // uvs[k + 1] = new Vector2(u, 1);
+                    if (k < uvs.Length * .5f)
+                    {
+                        uvs[k] = new Vector2(u, 0);
+                        uvs[k + 1] = new Vector2(u, .5f);
+                    }
+                    else
+                    {
+                        uvs[k] = new Vector2(u, .5f);
+                        uvs[k + 1] = new Vector2(u, 1);
+                    }
                     if(k-1 >=0){
                         strokeDistance += Vector3.Distance(doubleVerts[k], doubleVerts[k-1]);
                     }

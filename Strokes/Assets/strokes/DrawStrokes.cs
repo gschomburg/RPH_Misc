@@ -60,8 +60,8 @@ public class DrawStrokes : MonoBehaviour {
 
         cursor.localPosition = pos;
        
-		deltaRX += .005f;
-        cursor.localEulerAngles = new Vector3 (Mathf.Sin(deltaRX)*90, 0f, 0f);
+		// deltaRX += .005f;
+        // cursor.localEulerAngles = new Vector3 (Mathf.Sin(deltaRX)*90, 0f, 0f);
 		Quaternion rotation = cursor.rotation; //world rotation
 
 		if(Input.GetMouseButtonDown(0)){
@@ -87,7 +87,9 @@ public class DrawStrokes : MonoBehaviour {
         }
 	}
 	void clearStrokes(){
-
+        Mesh emptyMesh = new Mesh();
+        emptyMesh.name = "emptyMesh";
+        cacheMeshFilter.mesh = emptyMesh;
 	}
 	void combineStroke(Stroke _stroke){
 		// MeshFilter[] meshFilters = new MeshFilter[2];
