@@ -699,7 +699,7 @@ PlayerSettings:
   facebookSdkVersion: 7.9.4
   apiCompatibilityLevel: 2
   cloudProjectId: a7ee1a96-97b8-4aaf-99eb-622a797e0956
-  projectName: 
+  projectName: StrokesVR
   organizationId: greg-schomburg
   cloudEnabled: 0
   enableNativePlatformBackendsForNewInputSystem: 0
