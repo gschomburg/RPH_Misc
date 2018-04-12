@@ -62,14 +62,13 @@ public class DrawStrokes : MonoBehaviour {
         cursor.localPosition = pos;
         strokeCursor.localPosition = pos;
        
-		// deltaRX += .005f;
-        // cursor.localEulerAngles = new Vector3 (Mathf.Sin(deltaRX)*90, 0f, 0f);
+		deltaRX += .0025f;
+        cursor.localEulerAngles = new Vector3 (Mathf.Sin(deltaRX)*180, 0f, 0f);
 		Quaternion rotation = cursor.rotation; //world rotation
         strokeCursor.rotation = Quaternion.Inverse(rotation);
+
 		if(Input.GetMouseButtonDown(0)){
 			stroke = new Stroke(activeMeshFilter.mesh);
-            //set the x rotation randomly
-            // cursor.localEulerAngles = new Vector3(Random.Range(-60f, 60f), 0, 0);
 			stroke.options = strokeOptions;
 			stroke.start(pos, rotation);
 		}
@@ -95,32 +94,11 @@ public class DrawStrokes : MonoBehaviour {
         cacheMeshFilter.mesh = emptyMesh;
 	}
 	void combineStroke(Stroke _stroke){
-		// MeshFilter[] meshFilters = new MeshFilter[2];
-		// meshFilters[0] = activeMeshFilter;
-		// meshFilters[1] = cacheMeshFilter;
-		// CombineInstance[] combine = new CombineInstance[meshFilters.Length];
-		// int i = 0;
-		// while (i < meshFilters.Length) {
-		// 	combine[i].mesh = meshFilters[i].mesh;
-		// 	combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
-		// 	i++;
-		// }
-
-		// Mesh[] meshs = new Mesh[2];
-		// meshs[0] = _stroke.mesh;
-		// meshs[1] = cacheMeshFilter.mesh;
 		CombineInstance[] combine = new CombineInstance[2];
 		combine[0].mesh = cacheMeshFilter.mesh;
 		combine[0].transform = cacheMeshFilter.transform.localToWorldMatrix;
 		combine[1].mesh = _stroke.mesh;
 		combine[1].transform = cacheMeshFilter.transform.localToWorldMatrix;
-
-		// int i = 0;
-		// while (i < meshFilters.Length) {
-		// 	combine[i].mesh = meshFilters[i].mesh;
-		// 	combine[i].transform = meshFilters[i].transform.localToWorldMatrix;
-		// 	i++;
-		// }
 
 		Mesh mergedMesh = new Mesh();
 		mergedMesh.name = "mergedMesh";
